@@ -1,0 +1,16 @@
+package com.smartSure.claimService.client;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+
+import com.smartSure.claimService.dto.PolicyDTO;
+import com.smartSure.claimService.dto.PolicyResponse;
+
+@FeignClient(name = "policyService", path = "/api/policies")
+public interface PolicyClient {
+
+    // FeignClientInterceptor forwards X-User-Id, X-User-Role, X-Internal-Secret automatically
+    @GetMapping("/{policyId}")
+    PolicyResponse getPolicyById(@PathVariable("policyId") Long policyId);
+}

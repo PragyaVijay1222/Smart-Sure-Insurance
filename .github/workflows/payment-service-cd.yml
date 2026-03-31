@@ -1,0 +1,18 @@
+name: CD - PaymentService
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'paymentService/**'
+
+jobs:
+  docker-push:
+    uses: ./.github/workflows/_docker-build-push.yml
+    with:
+      service_name: payment-service
+      directory: paymentService
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
