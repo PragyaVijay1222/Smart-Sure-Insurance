@@ -58,6 +58,9 @@ jobs:
           SPRING_DATA_REDIS_PORT: 6379
           SPRING_RABBITMQ_HOST: localhost
           SPRING_RABBITMQ_PORT: 5672
+          SPRING_CLOUD_DISCOVERY_ENABLED: false
+          EUREKA_CLIENT_ENABLED: false
+          SPRING_CLOUD_CONFIG_ENABLED: false
         run: |
           cd adminService
           mvn test

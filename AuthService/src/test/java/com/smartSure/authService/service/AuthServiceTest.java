@@ -74,6 +74,8 @@ class AuthServiceTest {
 
         RegisterRequestDto req = new RegisterRequestDto();
         req.setEmail("test@gmail.com");
+        req.setPassword("password123");
+        req.setRole("CUSTOMER");
 
         when(repo.findByEmail(req.getEmail())).thenReturn(Optional.of(new User()));
 

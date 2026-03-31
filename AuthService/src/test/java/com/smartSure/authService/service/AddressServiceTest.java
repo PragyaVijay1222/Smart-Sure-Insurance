@@ -53,6 +53,7 @@ public class AddressServiceTest {
         when(uRepo.findById(1L)).thenReturn(Optional.of(user));
         
         when(modelMapper.map(any(AddressRequestDto.class), eq(Address.class))).thenReturn(address);
+        when(modelMapper.map(any(Address.class), eq(AddressResponseDto.class))).thenReturn(new AddressResponseDto());
 
         when(repo.save(any(Address.class))).thenReturn(address);
 
