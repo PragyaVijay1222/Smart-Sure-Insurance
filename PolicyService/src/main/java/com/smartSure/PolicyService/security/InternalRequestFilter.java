@@ -28,6 +28,11 @@ public class InternalRequestFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
+        if (path == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // Allow public endpoints
         if (path.startsWith("/api/auth") ||
                 path.startsWith("/swagger") ||

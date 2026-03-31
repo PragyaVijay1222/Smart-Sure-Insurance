@@ -56,6 +56,12 @@ class PolicyControllerTest {
     @MockBean
     private PolicyService policyService;
 
+    @MockBean
+    private InternalRequestFilter internalRequestFilter;
+
+    @MockBean
+    private HeaderAuthenticationFilter headerAuthenticationFilter;
+
     private ObjectMapper objectMapper;
 
     // Shared response fixtures
