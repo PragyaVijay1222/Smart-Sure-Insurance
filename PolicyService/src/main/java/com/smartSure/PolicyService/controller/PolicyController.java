@@ -59,27 +59,27 @@ public class PolicyController {
 
         Long customerId = SecurityUtils.getCurrentUserId();
 
-        Sort sort = direction.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+        if (customerId == null) {
+            throw new RuntimeException("Unauthorized: User not found in context");
+        }
 
-        return ResponseEntity.ok(
-                policyService.getCustomerPolicies(customerId, PageRequest.of(page, size, sort))
-        );
+        Sort.Direction dir = Sort.Direction.DESC;
+        if (direction != null && direction.equalsIgnoreCase("asc")) {
+            dir = Sort.Direction.ASC;
+        }
+
+        return ResponseEntity.ok(policyService.getCustomerPolicies(customerId, PageRequest.of(page, size, Sort.by(dir, sortBy))));
     }
 
     @GetMapping("/{policyId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
     public ResponseEntity<PolicyResponse> getPolicyById(@PathVariable Long policyId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        String currentRole = SecurityUtils.getCurrentRole();
 
-        Long userId = SecurityUtils.getCurrentUserId();
-        String role = SecurityUtils.getCurrentRole();
+        boolean isAdmin = currentRole != null && currentRole.equals("ROLE_ADMIN");
 
-        boolean isAdmin = "ROLE_ADMIN".equals(role);
-
-        return ResponseEntity.ok(
-                policyService.getPolicyById(policyId, userId, isAdmin)
-        );
+        return ResponseEntity.ok(policyService.getPolicyById(policyId, currentUserId, isAdmin));
     }
 
     @PutMapping("/{policyId}/cancel")
@@ -90,9 +90,11 @@ public class PolicyController {
 
         Long customerId = SecurityUtils.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                policyService.cancelPolicy(policyId, customerId, reason)
-        );
+        if (customerId == null) {
+            throw new RuntimeException("Unauthorized: User not found in context");
+        }
+
+        return ResponseEntity.ok(policyService.cancelPolicy(policyId, customerId, reason));
     }
 
     @PostMapping("/renew")

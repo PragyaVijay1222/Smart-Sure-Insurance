@@ -12,9 +12,7 @@ import com.smartSure.PolicyService.exception.*;
 import com.smartSure.PolicyService.security.HeaderAuthenticationFilter;
 import com.smartSure.PolicyService.security.InternalRequestFilter;
 import com.smartSure.PolicyService.security.SecurityUtils;
-import com.smartSure.PolicyService.service.PolicyService;
 import com.smartSure.PolicyService.config.SecurityConfig;
-import com.smartSure.PolicyService.config.JpaConfig;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.MockedStatic;
@@ -27,10 +25,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
