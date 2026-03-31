@@ -1,8 +1,11 @@
 package com.smartSure.PolicyService.dto.client;
 
-import lombok.Data;
+import lombok.*;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PaymentInitiateResponse {
     private Long id;
     private String razorpayOrderId;
