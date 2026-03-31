@@ -9,6 +9,8 @@ import com.smartSure.PolicyService.dto.premium.PremiumResponse;
 import com.smartSure.PolicyService.entity.Policy;
 import com.smartSure.PolicyService.entity.Premium;
 import com.smartSure.PolicyService.exception.*;
+import com.smartSure.PolicyService.security.HeaderAuthenticationFilter;
+import com.smartSure.PolicyService.security.InternalRequestFilter;
 import com.smartSure.PolicyService.security.SecurityUtils;
 import com.smartSure.PolicyService.service.PolicyService;
 import org.junit.jupiter.api.*;
