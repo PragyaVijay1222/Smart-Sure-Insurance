@@ -15,7 +15,7 @@ import com.smartSure.PolicyService.entity.PolicyType;
 import com.smartSure.PolicyService.entity.Premium;
 import com.smartSure.PolicyService.exception.*;
 import com.smartSure.PolicyService.mapper.PolicyMapper;
-//import com.smartSure.PolicyService.repository.AuditLogRepository;
+import com.smartSure.PolicyService.repository.AuditLogRepository;
 import com.smartSure.PolicyService.repository.PolicyRepository;
 import com.smartSure.PolicyService.repository.PolicyTypeRepository;
 import com.smartSure.PolicyService.repository.PremiumRepository;
@@ -48,6 +48,7 @@ public class PolicyService {
     private final PolicyRepository       policyRepository;
     private final PolicyTypeRepository   policyTypeRepository;
     private final PremiumRepository      premiumRepository;
+    private final AuditLogRepository     auditLogRepository;
     private final PremiumCalculator      premiumCalculator;
     private final PolicyMapper           policyMapper;
     private final NotificationPublisher  notificationPublisher;
@@ -102,12 +103,12 @@ public PolicyResponse purchasePolicy(Long customerId, PolicyPurchaseRequest requ
     generatePremiumSchedule(saved, type.getTermMonths());
 
     // ✅ SAFE AUDIT LOGGING (won’t break main flow)
-//    try {
-//        saveAudit(saved.getId(), customerId, "CUSTOMER", "PURCHASED",
-//                null, saved.getStatus().name(), "New policy purchased");
-//    } catch (Exception e) {
-//        log.error("Audit log failed for policyId={} but continuing", saved.getId(), e);
-//    }
+    try {
+        saveAudit(saved.getId(), customerId, "CUSTOMER", "PURCHASED",
+                null, saved.getStatus().name(), "New policy purchased");
+    } catch (Exception e) {
+        log.error("Audit log failed for policyId={} but continuing", saved.getId(), e);
+    }
 
     notificationPublisher.publishPolicyPurchased(
             PolicyPurchasedEvent.builder()
@@ -205,8 +206,8 @@ public PolicyResponse purchasePolicy(Long customerId, PolicyPurchaseRequest requ
                 .forEach(p -> p.setStatus(Premium.PremiumStatus.WAIVED));
 
         Policy saved = policyRepository.save(policy);
-//        saveAudit(policyId, customerId, "CUSTOMER", "CANCELLED",
-//                prevStatus, Policy.PolicyStatus.CANCELLED.name(), reason);
+        saveAudit(policyId, customerId, "CUSTOMER", "CANCELLED",
+                prevStatus, Policy.PolicyStatus.CANCELLED.name(), reason);
 
         notificationPublisher.publishPolicyCancelled(
                 PolicyCancelledEvent.builder()
@@ -277,9 +278,9 @@ public PolicyResponse purchasePolicy(Long customerId, PolicyPurchaseRequest requ
 
         Policy saved = policyRepository.save(newPolicy);
         generatePremiumSchedule(saved, type.getTermMonths());
-//        saveAudit(saved.getId(), customerId, "CUSTOMER", "RENEWED",
-//                null, Policy.PolicyStatus.ACTIVE.name(),
-//                "Renewed from policy " + oldPolicy.getPolicyNumber());
+        saveAudit(saved.getId(), customerId, "CUSTOMER", "RENEWED",
+                null, Policy.PolicyStatus.ACTIVE.name(),
+                "Renewed from policy " + oldPolicy.getPolicyNumber());
 
         // Renewal uses same event as purchase — customer gets a "policy renewed" email
         notificationPublisher.publishPolicyPurchased(
@@ -390,8 +391,8 @@ public PolicyResponse purchasePolicy(Long customerId, PolicyPurchaseRequest requ
         }
 
         Policy saved = policyRepository.save(policy);
-//        saveAudit(policyId, 0L, "ADMIN", "STATUS_CHANGED",
-//                prevStatus, request.getStatus().name(), request.getReason());
+        saveAudit(policyId, 0L, "ADMIN", "STATUS_CHANGED",
+                prevStatus, request.getStatus().name(), request.getReason());
 
         return policyMapper.toResponse(saved);
     }
@@ -436,10 +437,10 @@ public PolicyResponse purchasePolicy(Long customerId, PolicyPurchaseRequest requ
                 Policy.PolicyStatus.ACTIVE, LocalDate.now());
         expired.forEach(p -> {
             p.setStatus(Policy.PolicyStatus.EXPIRED);
-//            saveAudit(p.getId(), 0L, "SYSTEM", "EXPIRED",
-//                    Policy.PolicyStatus.ACTIVE.name(),
-//                    Policy.PolicyStatus.EXPIRED.name(),
-//                    "Auto-expired by scheduler");
+            saveAudit(p.getId(), 0L, "SYSTEM", "EXPIRED",
+                    Policy.PolicyStatus.ACTIVE.name(),
+                    Policy.PolicyStatus.EXPIRED.name(),
+                    "Auto-expired by scheduler");
         });
         log.info("Expiry scheduler: {} policies expired", expired.size());
     }
@@ -551,22 +552,22 @@ public PolicyResponse purchasePolicy(Long customerId, PolicyPurchaseRequest requ
     }
 
     // Persists an audit log entry; swallows exceptions so audit failures never roll back the main transaction
-//    private void saveAudit(Long policyId, Long actorId, String actorRole,
-//                           String action, String fromStatus, String toStatus, String details) {
-//        try {
-//            auditLogRepository.save(AuditLog.builder()
-//                    .policyId(policyId)
-//                    .actorId(actorId)
-//                    .actorRole(actorRole)
-//                    .action(action)
-//                    .fromStatus(fromStatus)
-//                    .toStatus(toStatus)
-//                    .details(details)
-//                    .build());
-//        } catch (Exception ex) {
-//            log.error("Audit log save failed for policyId={}: {}", policyId, ex.getMessage());
-//        }
-//    }
+    private void saveAudit(Long policyId, Long actorId, String actorRole,
+                           String action, String fromStatus, String toStatus, String details) {
+        try {
+            auditLogRepository.save(com.smartSure.PolicyService.entity.AuditLog.builder()
+                    .policyId(policyId)
+                    .actorId(actorId)
+                    .actorRole(actorRole)
+                    .action(action)
+                    .fromStatus(fromStatus)
+                    .toStatus(toStatus)
+                    .details(details)
+                    .build());
+        } catch (Exception ex) {
+            log.error("Audit log save failed for policyId={}: {}", policyId, ex.getMessage());
+        }
+    }
 
     // Generates a unique policy number in the format POL-YYYYMMDD-XXXXX
     private String generatePolicyNumber() {

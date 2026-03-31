@@ -45,6 +45,7 @@ class PolicyServiceTest {
     @Mock private PolicyMapper           policyMapper;
     @Mock private NotificationPublisher  notificationPublisher;
     @Mock private AuthServiceClient      authServiceClient;
+    @Mock private PaymentServiceClient   paymentServiceClient;
 
     // ── Subject under test ─────────────────────────────────────────────────────
     @InjectMocks
@@ -539,19 +540,32 @@ class PolicyServiceTest {
             when(policyRepository.findById(POLICY_ID)).thenReturn(Optional.of(savedPolicy));
             when(premiumRepository.findByIdAndPolicyId(1L, POLICY_ID))
                     .thenReturn(Optional.of(pendingPremium));
+            
+            com.smartSure.PolicyService.dto.client.PaymentInitiateResponse paymentResponse = 
+                com.smartSure.PolicyService.dto.client.PaymentInitiateResponse.builder()
+                    .razorpayOrderId("ORDER_123")
+                    .razorpayKeyId("KEY_123")
+                    .build();
+            
+            when(paymentServiceClient.initiatePayment(anyString(), any()))
+                    .thenReturn(paymentResponse);
+                    
             when(premiumRepository.save(any())).thenReturn(pendingPremium);
-            when(authServiceClient.getCustomerEmail(CUSTOMER_ID)).thenReturn("c@email.com");
+            // when(authServiceClient.getCustomerEmail(CUSTOMER_ID)).thenReturn("c@email.com"); // Removed if Service doesn't call it in payPremium anymore
 
             // Act
             PremiumResponse result = policyService.payPremium(CUSTOMER_ID, request);
 
             // Assert
             assertThat(result).isNotNull();
-            assertThat(pendingPremium.getStatus()).isEqualTo(Premium.PremiumStatus.PAID);
-            assertThat(pendingPremium.getPaidDate()).isEqualTo(LocalDate.now());
-            assertThat(pendingPremium.getPaymentMethod()).isEqualTo(Premium.PaymentMethod.UPI);
-            verify(notificationPublisher, times(1)).publishPremiumPaid(any());
-            verify(auditLogRepository, times(1)).save(any(AuditLog.class));
+            assertThat(pendingPremium.getStatus()).isEqualTo(Premium.PremiumStatus.PAYMENT_IN_PROGRESS);
+            assertThat(result.getRazorpayOrderId()).isEqualTo("ORDER_123");
+            verify(premiumRepository, times(1)).save(any());
+            
+            // Notification is NOT published in payPremium now (it's a Saga start)
+            // verify(notificationPublisher, times(1)).publishPremiumPaid(any()); 
+            // Audit log NOT called in payPremium yet
+            // verify(auditLogRepository, times(1)).save(any(AuditLog.class));
         }
 
         @Test

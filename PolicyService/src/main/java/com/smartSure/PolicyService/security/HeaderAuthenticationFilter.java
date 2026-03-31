@@ -29,6 +29,11 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
         
         String path = request.getRequestURI();
         
+        if (path == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         if (path.startsWith("/actuator")) {
             filterChain.doFilter(request, response);
             return;
