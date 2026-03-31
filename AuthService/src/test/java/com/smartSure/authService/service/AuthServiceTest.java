@@ -78,6 +78,7 @@ class AuthServiceTest {
         req.setRole("CUSTOMER");
 
         when(repo.findByEmail(req.getEmail())).thenReturn(Optional.of(new User()));
+        when(modelMapper.map(req, User.class)).thenReturn(new User());
 
         assertThrows(RuntimeException.class, () -> authService.register(req));
     }
