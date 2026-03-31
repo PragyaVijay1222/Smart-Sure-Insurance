@@ -589,13 +589,22 @@ class PolicyServiceTest {
             when(policyRepository.findById(POLICY_ID)).thenReturn(Optional.of(savedPolicy));
             when(premiumRepository.findByIdAndPolicyId(1L, POLICY_ID))
                     .thenReturn(Optional.of(pendingPremium));
+
+            com.smartSure.PolicyService.dto.client.PaymentInitiateResponse paymentResponse = 
+                com.smartSure.PolicyService.dto.client.PaymentInitiateResponse.builder()
+                    .razorpayOrderId("RZP_TEST_REF")
+                    .build();
+            
+            when(paymentServiceClient.initiatePayment(anyString(), any()))
+                    .thenReturn(paymentResponse);
+
             when(premiumRepository.save(any())).thenReturn(pendingPremium);
 
             // Act
             policyService.payPremium(CUSTOMER_ID, request);
-
-            // Assert — reference should be auto-generated with TXN- prefix
-            assertThat(pendingPremium.getPaymentReference()).startsWith("TXN-");
+ 
+            // Assert — reference should be from Razorpay
+            assertThat(pendingPremium.getPaymentReference()).isEqualTo("RZP_TEST_REF");
         }
 
         @Test
