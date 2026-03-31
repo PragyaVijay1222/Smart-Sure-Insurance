@@ -12,7 +12,14 @@ public class SecurityUtils {
             return null;
         }
 
-        return (Long) auth.getPrincipal();
+        Object principal = auth.getPrincipal();
+        if (principal instanceof Long) {
+            return (Long) principal;
+        }
+        
+        // Handle cases where principal might be a string (like in @WithMockUser tests)
+        // or a different object type without crashing.
+        return null;
     }
 
     public static String getCurrentRole() {

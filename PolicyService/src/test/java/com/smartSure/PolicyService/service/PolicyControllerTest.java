@@ -13,10 +13,13 @@ import com.smartSure.PolicyService.security.HeaderAuthenticationFilter;
 import com.smartSure.PolicyService.security.InternalRequestFilter;
 import com.smartSure.PolicyService.security.SecurityUtils;
 import com.smartSure.PolicyService.service.PolicyService;
+import com.smartSure.PolicyService.config.SecurityConfig;
+import com.smartSure.PolicyService.config.JpaConfig;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.annotation.Import;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -24,6 +27,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -48,6 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * In a full integration test you would populate the SecurityContextHolder directly.
  */
 @WebMvcTest(PolicyController.class)
+@Import(SecurityConfig.class)
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PolicyController Web Layer Tests")
 class PolicyControllerTest {
@@ -64,15 +72,29 @@ class PolicyControllerTest {
     @MockBean
     private HeaderAuthenticationFilter headerAuthenticationFilter;
 
+    private MockedStatic<SecurityUtils> mockedSecurityUtils;
     private ObjectMapper objectMapper;
 
     // Shared response fixtures
     private PolicyResponse samplePolicyResponse;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
+
+        // Configure mock filters to pass through — VERY IMPORTANT for @WebMvcTest
+        doAnswer(invocation -> {
+            invocation.getArgument(2, jakarta.servlet.FilterChain.class)
+                    .doFilter(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(internalRequestFilter).doFilter(any(), any(), any());
+
+        doAnswer(invocation -> {
+            invocation.getArgument(2, jakarta.servlet.FilterChain.class)
+                    .doFilter(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(headerAuthenticationFilter).doFilter(any(), any(), any());
 
         samplePolicyResponse = PolicyResponse.builder()
                 .id(1L)
@@ -85,6 +107,18 @@ class PolicyControllerTest {
                 .startDate(LocalDate.now())
                 .endDate(LocalDate.now().plusMonths(12))
                 .build();
+
+        // Global mock for SecurityUtils to prevent 500 errors in methods
+        mockedSecurityUtils = mockStatic(SecurityUtils.class);
+        mockedSecurityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+        mockedSecurityUtils.when(SecurityUtils::getCurrentRole).thenReturn("ROLE_CUSTOMER");
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (mockedSecurityUtils != null) {
+            mockedSecurityUtils.close();
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -109,39 +143,31 @@ class PolicyControllerTest {
         @DisplayName("should return 201 CREATED for valid purchase request")
         @WithMockUser(roles = "CUSTOMER")
         void purchasePolicy_validRequest_returns201() throws Exception {
-            try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-                securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            when(policyService.purchasePolicy(eq(42L), any(PolicyPurchaseRequest.class)))
+                    .thenReturn(samplePolicyResponse);
 
-                when(policyService.purchasePolicy(eq(42L), any(PolicyPurchaseRequest.class)))
-                        .thenReturn(samplePolicyResponse);
-
-                mockMvc.perform(post("/api/policies/purchase")
-                                .with(csrf())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(buildValidRequest())))
-                        .andExpect(status().isCreated())
-                        .andExpect(jsonPath("$.id").value(1L))
-                        .andExpect(jsonPath("$.policyNumber").value("POL-20250101-ABCDE"))
-                        .andExpect(jsonPath("$.status").value("ACTIVE"));
-            }
+            mockMvc.perform(post("/api/policies/purchase")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(buildValidRequest())))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.id").value(1L))
+                    .andExpect(jsonPath("$.policyNumber").value("POL-20250101-ABCDE"))
+                    .andExpect(jsonPath("$.status").value("ACTIVE"));
         }
 
         @Test
         @DisplayName("should return 409 when duplicate policy exception is thrown")
         @WithMockUser(roles = "CUSTOMER")
         void purchasePolicy_duplicate_returns409() throws Exception {
-            try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-                securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            when(policyService.purchasePolicy(any(), any()))
+                    .thenThrow(new DuplicatePolicyException());
 
-                when(policyService.purchasePolicy(any(), any()))
-                        .thenThrow(new DuplicatePolicyException());
-
-                mockMvc.perform(post("/api/policies/purchase")
-                                .with(csrf())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(buildValidRequest())))
-                        .andExpect(status().isConflict());
-            }
+            mockMvc.perform(post("/api/policies/purchase")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(buildValidRequest())))
+                    .andExpect(status().isConflict());
         }
 
         @Test
@@ -180,30 +206,26 @@ class PolicyControllerTest {
         @DisplayName("should return 200 with paginated policies")
         @WithMockUser(roles = "CUSTOMER")
         void getMyPolicies_returns200() throws Exception {
-            try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-                securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            PolicyPageResponse pageResponse = PolicyPageResponse.builder()
+                    .content(List.of(samplePolicyResponse))
+                    .pageNumber(0)
+                    .pageSize(10)
+                    .totalElements(1L)
+                    .totalPages(1)
+                    .last(true)
+                    .build();
 
-                PolicyPageResponse pageResponse = PolicyPageResponse.builder()
-                        .content(List.of(samplePolicyResponse))
-                        .pageNumber(0)
-                        .pageSize(10)
-                        .totalElements(1L)
-                        .totalPages(1)
-                        .last(true)
-                        .build();
+            when(policyService.getCustomerPolicies(eq(42L), any(Pageable.class)))
+                    .thenReturn(pageResponse);
 
-                when(policyService.getCustomerPolicies(eq(42L), any(Pageable.class)))
-                        .thenReturn(pageResponse);
-
-                mockMvc.perform(get("/api/policies/my")
-                                .param("page", "0")
-                                .param("size", "10"))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.content").isArray())
-                        .andExpect(jsonPath("$.content[0].id").value(1L))
-                        .andExpect(jsonPath("$.totalElements").value(1L))
-                        .andExpect(jsonPath("$.pageNumber").value(0));
-            }
+            mockMvc.perform(get("/api/policies/my")
+                            .param("page", "0")
+                            .param("size", "10"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content").isArray())
+                    .andExpect(jsonPath("$.content[0].id").value(1L))
+                    .andExpect(jsonPath("$.totalElements").value(1L))
+                    .andExpect(jsonPath("$.pageNumber").value(0));
         }
     }
 
@@ -219,34 +241,28 @@ class PolicyControllerTest {
         @DisplayName("should return 200 with policy details")
         @WithMockUser(roles = "CUSTOMER")
         void getPolicyById_found_returns200() throws Exception {
-            try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-                securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
-                securityUtils.when(SecurityUtils::getCurrentRole).thenReturn("ROLE_CUSTOMER");
+            mockedSecurityUtils.when(SecurityUtils::getCurrentRole).thenReturn("ROLE_CUSTOMER");
 
-                when(policyService.getPolicyById(1L, 42L, false))
-                        .thenReturn(samplePolicyResponse);
+            when(policyService.getPolicyById(1L, 42L, false))
+                    .thenReturn(samplePolicyResponse);
 
-                mockMvc.perform(get("/api/policies/1"))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.id").value(1L))
-                        .andExpect(jsonPath("$.policyNumber").value("POL-20250101-ABCDE"));
-            }
+            mockMvc.perform(get("/api/policies/1"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(1L))
+                    .andExpect(jsonPath("$.policyNumber").value("POL-20250101-ABCDE"));
         }
 
         @Test
         @DisplayName("should return 404 when policy not found")
         @WithMockUser(roles = "CUSTOMER")
         void getPolicyById_notFound_returns404() throws Exception {
-            try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-                securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
-                securityUtils.when(SecurityUtils::getCurrentRole).thenReturn("ROLE_CUSTOMER");
+            mockedSecurityUtils.when(SecurityUtils::getCurrentRole).thenReturn("ROLE_CUSTOMER");
 
-                when(policyService.getPolicyById(99L, 42L, false))
-                        .thenThrow(new PolicyNotFoundException(99L));
+            when(policyService.getPolicyById(99L, 42L, false))
+                    .thenThrow(new PolicyNotFoundException(99L));
 
-                mockMvc.perform(get("/api/policies/99"))
-                        .andExpect(status().isNotFound());
-            }
+            mockMvc.perform(get("/api/policies/99"))
+                    .andExpect(status().isNotFound());
         }
     }
 
@@ -262,37 +278,29 @@ class PolicyControllerTest {
         @DisplayName("should return 200 when policy is cancelled successfully")
         @WithMockUser(roles = "CUSTOMER")
         void cancelPolicy_success_returns200() throws Exception {
-            try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-                securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            PolicyResponse cancelledResponse = PolicyResponse.builder()
+                    .id(1L).status("CANCELLED").build();
 
-                PolicyResponse cancelledResponse = PolicyResponse.builder()
-                        .id(1L).status("CANCELLED").build();
+            when(policyService.cancelPolicy(1L, 42L, "No longer needed"))
+                    .thenReturn(cancelledResponse);
 
-                when(policyService.cancelPolicy(1L, 42L, "No longer needed"))
-                        .thenReturn(cancelledResponse);
-
-                mockMvc.perform(put("/api/policies/1/cancel")
-                                .with(csrf())
-                                .param("reason", "No longer needed"))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.status").value("CANCELLED"));
-            }
+            mockMvc.perform(put("/api/policies/1/cancel")
+                            .with(csrf())
+                            .param("reason", "No longer needed"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("CANCELLED"));
         }
 
         @Test
         @DisplayName("should return 409 when policy is already cancelled")
         @WithMockUser(roles = "CUSTOMER")
         void cancelPolicy_alreadyCancelled_returns409() throws Exception {
-            try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-                securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            when(policyService.cancelPolicy(any(), any(), any()))
+                    .thenThrow(new IllegalStateException("Policy is already cancelled"));
 
-                when(policyService.cancelPolicy(any(), any(), any()))
-                        .thenThrow(new IllegalStateException("Policy is already cancelled"));
-
-                mockMvc.perform(put("/api/policies/1/cancel")
-                                .with(csrf()))
-                        .andExpect(status().isConflict());
-            }
+            mockMvc.perform(put("/api/policies/1/cancel")
+                            .with(csrf()))
+                    .andExpect(status().isConflict());
         }
     }
 
@@ -308,36 +316,32 @@ class PolicyControllerTest {
         @DisplayName("should return 200 when premium is paid successfully")
         @WithMockUser(roles = "CUSTOMER")
         void payPremium_success_returns200() throws Exception {
-            try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-                securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(42L);
+            PremiumPaymentRequest request = PremiumPaymentRequest.builder()
+                    .policyId(1L)
+                    .premiumId(1L)
+                    .paymentMethod(Premium.PaymentMethod.UPI)
+                    .paymentReference("TXN-123456")
+                    .build();
 
-                PremiumPaymentRequest request = PremiumPaymentRequest.builder()
-                        .policyId(1L)
-                        .premiumId(1L)
-                        .paymentMethod(Premium.PaymentMethod.UPI)
-                        .paymentReference("TXN-123456")
-                        .build();
+            PremiumResponse premiumResponse = PremiumResponse.builder()
+                    .id(1L)
+                    .amount(new BigDecimal("2625.00"))
+                    .status("PAID")
+                    .paymentMethod("UPI")
+                    .paymentReference("TXN-123456")
+                    .paidDate(LocalDate.now())
+                    .build();
 
-                PremiumResponse premiumResponse = PremiumResponse.builder()
-                        .id(1L)
-                        .amount(new BigDecimal("2625.00"))
-                        .status("PAID")
-                        .paymentMethod("UPI")
-                        .paymentReference("TXN-123456")
-                        .paidDate(LocalDate.now())
-                        .build();
+            when(policyService.payPremium(eq(42L), any(PremiumPaymentRequest.class)))
+                    .thenReturn(premiumResponse);
 
-                when(policyService.payPremium(eq(42L), any(PremiumPaymentRequest.class)))
-                        .thenReturn(premiumResponse);
-
-                mockMvc.perform(post("/api/policies/premiums/pay")
-                                .with(csrf())
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(request)))
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.status").value("PAID"))
-                        .andExpect(jsonPath("$.paymentReference").value("TXN-123456"));
-            }
+            mockMvc.perform(post("/api/policies/premiums/pay")
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("PAID"))
+                    .andExpect(jsonPath("$.paymentReference").value("TXN-123456"));
         }
     }
 
