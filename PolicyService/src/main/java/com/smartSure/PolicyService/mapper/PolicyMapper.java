@@ -24,5 +24,17 @@ public interface PolicyMapper {
     @Mapping(target = "premiums", source = "premiums")
     PolicyResponse toResponseWithPremiums(Policy policy, List<PremiumResponse> premiums);
 
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "policyNumber", ignore = true)
+    @Mapping(target = "customerId", ignore = true)
+    @Mapping(target = "policyType", ignore = true)
+    @Mapping(target = "premiumAmount", ignore = true)
+    @Mapping(target = "endDate", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "remarks", ignore = true)
+    @Mapping(target = "cancellationReason", ignore = true)
+    @Mapping(target = "premiums", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     Policy toEntity(PolicyPurchaseRequest request);
 }

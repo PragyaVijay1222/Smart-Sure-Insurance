@@ -1,6 +1,7 @@
 package com.smartSure.PolicyService.service;
 
 import com.smartSure.PolicyService.client.AuthServiceClient;
+import com.smartSure.PolicyService.client.PaymentServiceClient;
 import com.smartSure.PolicyService.dto.calculation.PremiumCalculationResponse;
 import com.smartSure.PolicyService.dto.policy.*;
 import com.smartSure.PolicyService.dto.premium.PremiumPaymentRequest;

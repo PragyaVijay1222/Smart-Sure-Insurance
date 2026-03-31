@@ -10,5 +10,7 @@ public interface PremiumMapper {
 
     @Mapping(target = "status", expression = "java(premium.getStatus().name())")
     @Mapping(target = "paymentMethod", expression = "java(premium.getPaymentMethod() != null ? premium.getPaymentMethod().name() : null)")
+    @Mapping(target = "razorpayOrderId", ignore = true)
+    @Mapping(target = "razorpayKeyId", ignore = true)
     PremiumResponse toResponse(Premium premium);
 }
