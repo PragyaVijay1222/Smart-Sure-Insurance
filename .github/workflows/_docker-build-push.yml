@@ -48,6 +48,6 @@ jobs:
         with:
           context: ./${{ inputs.directory }}
           push: true
-          tags: smartsureinsurance/${{ inputs.service_name }}:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ inputs.service_name }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
