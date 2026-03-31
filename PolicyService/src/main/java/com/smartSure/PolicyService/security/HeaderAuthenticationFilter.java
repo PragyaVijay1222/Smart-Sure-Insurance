@@ -29,22 +29,14 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
         
         String path = request.getRequestURI();
         
-        if (path == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+        // Define paths that bypass header authentication (e.g., monitoring, documentation)
+        boolean isBypassPath = path != null && (
+                path.startsWith("/actuator") || 
+                path.contains("swagger") || 
+                path.contains("api-docs")
+        );
 
-        if (path.startsWith("/actuator")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        if (path.contains("swagger") || path.contains("api-docs") || path.contains("actuator")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        if (userIdHeader != null && roleHeader != null) {
+        if (!isBypassPath && userIdHeader != null && roleHeader != null) {
             try {
                 Long userId = Long.parseLong(userIdHeader);
 
