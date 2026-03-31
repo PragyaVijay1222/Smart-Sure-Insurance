@@ -46,7 +46,7 @@ services:
 
   # -------------------- Config Server --------------------
   config-server-smart-sure:
-    image: smartsureinsurance/config-server:latest
+    image: pragyavijay/config-server:latest
     container_name: config-server-smart-sure
     environment:
       - JAVA_OPTS=-Xmx256m -Xms256m
@@ -59,7 +59,7 @@ services:
 
   # -------------------- Eureka / Service Registry --------------------
   service-registry-smart-sure:
-    image: smartsureinsurance/service-registry:latest
+    image: pragyavijay/service-registry:latest
     container_name: service-registry-smart-sure
     environment:
       - JAVA_OPTS=-Xmx256m -Xms256m
@@ -72,7 +72,7 @@ services:
 
   # -------------------- API Gateway --------------------
   api-gateway-smartsure:
-    image: smartsureinsurance/api-gateway:latest
+    image: pragyavijay/api-gateway:latest
     container_name: api-gateway-smartsure
     environment:
       - JAVA_OPTS=-Xmx256m -Xms256m
@@ -85,7 +85,7 @@ services:
 
   # -------------------- Microservices --------------------
   auth-service:
-    image: smartsureinsurance/auth-service:latest
+    image: pragyavijay/auth-service:latest
     container_name: auth-service
     environment:
       - JAVA_OPTS=-Xmx256m -Xms256m
@@ -103,7 +103,7 @@ services:
     restart: always
 
   policy-service:
-    image: smartsureinsurance/policy-service:latest
+    image: pragyavijay/policy-service:latest
     container_name: policy-service
     environment:
       - JAVA_OPTS=-Xmx256m -Xms256m
@@ -121,7 +121,7 @@ services:
     restart: always
 
   payment-service:
-    image: smartsureinsurance/payment-service:latest
+    image: pragyavijay/payment-service:latest
     container_name: payment-service
     environment:
       - JAVA_OPTS=-Xmx256m -Xms256m
@@ -139,7 +139,7 @@ services:
     restart: always
 
   claim-service:
-    image: smartsureinsurance/claim-service:latest
+    image: pragyavijay/claim-service:latest
     container_name: claim-service
     environment:
       - JAVA_OPTS=-Xmx256m -Xms256m
@@ -157,7 +157,7 @@ services:
     restart: always
 
   admin-service:
-    image: smartsureinsurance/admin-service:latest
+    image: pragyavijay/admin-service:latest
     container_name: admin-service
     environment:
       - JAVA_OPTS=-Xmx256m -Xms256m
