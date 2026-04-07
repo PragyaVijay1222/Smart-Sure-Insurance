@@ -12,6 +12,7 @@ import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +26,11 @@ class PolicyTypeServiceTest {
 
     @Mock private PolicyTypeRepository policyTypeRepository;
     @Mock private PolicyTypeMapper     policyTypeMapper;
+    @Mock private org.springframework.cache.CacheManager cacheManager;
+    @Mock private com.smartSure.PolicyService.repository.PolicyRepository policyRepository;
+    @Mock private com.smartSure.PolicyService.repository.PremiumRepository premiumRepository;
+    @Mock private com.smartSure.PolicyService.client.AuthServiceClient authServiceClient;
+    @Mock private NotificationService notificationService;
 
     @InjectMocks
     private PolicyTypeService policyTypeService;
@@ -310,6 +316,7 @@ class PolicyTypeServiceTest {
         void delete_existingType_setsDiscontinued() {
             when(policyTypeRepository.findById(1L)).thenReturn(Optional.of(activePolicyType));
             when(policyTypeRepository.save(any())).thenReturn(activePolicyType);
+            when(policyRepository.findByPolicyType_Id(1L)).thenReturn(Collections.emptyList());
 
             policyTypeService.deletePolicyType(1L);
 
@@ -317,6 +324,7 @@ class PolicyTypeServiceTest {
             assertThat(activePolicyType.getStatus())
                     .isEqualTo(PolicyType.PolicyTypeStatus.DISCONTINUED);
             verify(policyTypeRepository, times(1)).save(activePolicyType);
+            verify(policyRepository).findByPolicyType_Id(1L);
         }
 
         @Test
