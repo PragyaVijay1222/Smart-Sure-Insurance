@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
-
+import org.springframework.http.HttpMethod;
 
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
@@ -20,58 +20,71 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class JwtAuthFilter implements WebFilter {
 
-    private final JwtUtil jwtUtil;
-    
-    @Value("${internal.secret}")
-    private String internalSecret;
+        private final JwtUtil jwtUtil;
 
-    @Override
-    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-    	
-    	String path = exchange.getRequest().getURI().getPath();
-    	if (path.startsWith("/api/auth") ||
-    		path.startsWith("/actuator") ||
-    		path.startsWith("/authService/actuator") ||
-    		path.startsWith("/swagger") ||
-    		path.startsWith("/v3/api-docs")) {
-    		
-    	    return chain.filter(exchange);
-    	}
-    	
-        String header = exchange.getRequest()
-                .getHeaders()
-                .getFirst(HttpHeaders.AUTHORIZATION);
+        @Value("${internal.secret}")
+        private String internalSecret;
 
-        if (header != null && header.startsWith("Bearer ")) {
+        @Override
+        public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
 
-            String token = header.substring(7);
+                String path = exchange.getRequest().getURI().getPath();
 
-            if (jwtUtil.validateToken(token)) {
+                // Let OPTIONS preflight requests through immediately
+                if (exchange.getRequest().getMethod() == HttpMethod.OPTIONS) {
+                        return chain.filter(exchange);
+                }
 
-                Long userIdLong = jwtUtil.extractUserIdAsLong(token);
-                String userId = String.valueOf(userIdLong);
-                String role = jwtUtil.extractRole(token);
+                // Public paths
+                // if (path.startsWith("/api/auth") ||
+                // path.startsWith("/actuator") ||
+                // path.startsWith("/authService/actuator") ||
+                // path.startsWith("/swagger") ||
+                // path.startsWith("/v3/api-docs")) {
+                // return chain.filter(exchange);
+                // }
 
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(
-                                userIdLong,
-                                null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                        );
+                String header = exchange.getRequest()
+                                .getHeaders()
+                                .getFirst(HttpHeaders.AUTHORIZATION);
 
-                ServerWebExchange mutatedExchange = exchange.mutate()
-                        .request(builder -> builder
-                                .header("X-User-Id", userId)
-                                .header("X-User-Role", role)
-                                .header("X-Internal-Secret", internalSecret)
-                        )
-                        .build();
+		if (header != null && header.startsWith("Bearer ")) {
+			String token = header.substring(7);
 
-                return chain.filter(mutatedExchange)
-                        .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
-            }
-        }
+			try {
+				if (jwtUtil.validateToken(token)) {
+					Long userIdLong = jwtUtil.extractUserIdAsLong(token);
+					String userId = String.valueOf(userIdLong);
+					String role = jwtUtil.extractRole(token);
 
-        return chain.filter(exchange);
-    }
+					UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+							userIdLong,
+							null,
+							List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+
+					ServerWebExchange mutatedExchange = exchange.mutate()
+							.request(builder -> builder
+									.header("X-User-Id", userId)
+									.header("X-User-Role", role)
+									.header("X-Internal-Secret", internalSecret))
+							.build();
+
+					return chain.filter(mutatedExchange)
+							.contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
+				}
+			} catch (Exception e) {
+				// If token is invalid or parsing fails, log and let it fall through
+			}
+		}
+
+		// Guest request OR Invalid/Expired token — strip potentially stale
+		// Authorization header and add internal secret.
+		ServerWebExchange mutatedExchange = exchange.mutate()
+				.request(builder -> builder
+						.headers(headers -> headers.remove(HttpHeaders.AUTHORIZATION))
+						.header("X-Internal-Secret", internalSecret))
+				.build();
+
+		return chain.filter(mutatedExchange);
+	}
 }

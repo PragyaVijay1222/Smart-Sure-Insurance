@@ -18,8 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
  * safe default values so PolicyService can still function.
  */
 @FeignClient(
-        name = "authService",
-        url = "${services.auth-service.url:http://localhost:8081}",
+        name = "AuthService",
         fallback = AuthServiceFallback.class
 )
 public interface AuthServiceClient {

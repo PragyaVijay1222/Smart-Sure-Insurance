@@ -56,6 +56,7 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // PUBLIC APIs
+                        .requestMatchers(HttpMethod.GET, "/api/policy-types").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/policy-types/**").permitAll()
                         .requestMatchers("/api/policies/calculate-premium").permitAll()
 

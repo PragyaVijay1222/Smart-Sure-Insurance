@@ -6,12 +6,21 @@ import com.smartSure.PolicyService.entity.PolicyType;
 import com.smartSure.PolicyService.exception.PolicyTypeNotFoundException;
 import com.smartSure.PolicyService.mapper.PolicyTypeMapper;
 import com.smartSure.PolicyService.repository.PolicyTypeRepository;
+import com.smartSure.PolicyService.repository.PolicyRepository;
+import com.smartSure.PolicyService.repository.PremiumRepository;
+import com.smartSure.PolicyService.client.AuthServiceClient;
+import com.smartSure.PolicyService.entity.Policy;
+import com.smartSure.PolicyService.entity.Premium;
+import com.smartSure.PolicyService.dto.client.CustomerProfileResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.PostConstruct;
+import org.springframework.cache.CacheManager;
+import java.util.Objects;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import com.smartSure.PolicyService.exception.ServiceUnavailableException;
@@ -24,12 +33,30 @@ public class PolicyTypeService {
 
     private final PolicyTypeRepository policyTypeRepository;
     private final PolicyTypeMapper     policyTypeMapper;
+    private final CacheManager         cacheManager;
+    private final PolicyRepository     policyRepository;
+    private final PremiumRepository    premiumRepository;
+    private final AuthServiceClient    authServiceClient;
+    private final NotificationService  notificationService;
+
+    // Clears the cache on startup to ensure no stale empty lists are left from previous failures
+    @PostConstruct
+    public void clearStaleCaches() {
+        log.info("PolicyService: Proactively clearing stale policy catalogues from Redis Cache...");
+        try {
+            Objects.requireNonNull(cacheManager.getCache("policyTypes")).clear();
+            Objects.requireNonNull(cacheManager.getCache("policyById")).clear();
+            log.info("PolicyService: Caches successfully evicted.");
+        } catch (Exception e) {
+            log.warn("PolicyService: Cache eviction failed (might be a fresh startup without Redis) — reason={}", e.getMessage());
+        }
+    }
 
     // ── Public ────────────────────────────────────────────────
 
     // Returns all active policy types ordered by category — cached and circuit-breaker protected
     @Cacheable("policyTypes")
-    @CircuitBreaker(name = "policyTypeService", fallbackMethod = "getAllActiveFallback")
+    @CircuitBreaker(name = "policyTypeService", fallbackMethod = "getAllActivePolicyTypesFallback")
     public List<PolicyTypeResponse> getAllActivePolicyTypes() {
         return policyTypeRepository
                 .findByStatusOrderByCategory(PolicyType.PolicyTypeStatus.ACTIVE)
@@ -37,24 +64,24 @@ public class PolicyTypeService {
                 .map(policyTypeMapper::toResponse)
                 .toList();
     }
-    // Circuit breaker fallback — returns empty list so the API stays up when DB is unreachable
-    public List<PolicyTypeResponse> getAllActiveFallback(Throwable t) {
-        log.error("getAllActivePolicyTypes CIRCUIT BREAKER fallback — reason={}", t.getMessage());
-        return List.of(); // empty list — frontend shows "no products available"
+
+    // Fallback for cache deserialization failures or DB outages
+    public List<PolicyTypeResponse> getAllActivePolicyTypesFallback(Throwable t) {
+        log.error("PolicyTypeService: getAllActivePolicyTypes CIRCUIT BREAKER fallback — reason={}", t.getMessage());
+        // Bypass cache and go direct to DB if it's a Redis/Jackson failure
+        return policyTypeRepository
+                .findByStatusOrderByCategory(PolicyType.PolicyTypeStatus.ACTIVE)
+                .stream()
+                .map(policyTypeMapper::toResponse)
+                .toList();
     }
 
     // Fetches a single policy type by ID — cached and circuit-breaker protected
     @Cacheable(value = "policyById", key = "#id")
-    @CircuitBreaker(name = "policyTypeService", fallbackMethod = "getPolicyTypeFallback")
     public PolicyTypeResponse getPolicyTypeById(Long id) {
         return policyTypeMapper.toResponse(getPolicyTypeEntity(id));
     }
 
-    // Circuit breaker fallback — throws ServiceUnavailableException since we can't proceed without product details
-    public PolicyTypeResponse getPolicyTypeFallback(Long id, Throwable t) {
-        log.error("getPolicyTypeById CIRCUIT BREAKER fallback — id={}, reason={}", id, t.getMessage());
-        throw new ServiceUnavailableException("Policy type lookup service", t);
-    }
 
     // Returns active policy types filtered by insurance category
     public List<PolicyTypeResponse> getByCategory(PolicyType.InsuranceCategory category) {
@@ -122,13 +149,45 @@ public class PolicyTypeService {
         return policyTypeMapper.toResponse(policyTypeRepository.save(pt));
     }
 
-    // Soft-deletes a policy type by setting its status to DISCONTINUED and evicts the cache
+    // Soft-deletes a policy type by setting its status to DISCONTINUED and evicts the cache.
+    // Also cancels all active/created policies and alerts customers.
     @Transactional
     @CacheEvict(value = {"policyTypes", "policyById"}, allEntries = true)
     public void deletePolicyType(Long id) {
         PolicyType pt = getPolicyTypeEntity(id);
         pt.setStatus(PolicyType.PolicyTypeStatus.DISCONTINUED);
         policyTypeRepository.save(pt);
+
+        // Discontinue policies associated with this product
+        List<Policy> activePolicies = policyRepository.findByPolicyType_Id(id).stream()
+                .filter(p -> p.getStatus() == Policy.PolicyStatus.ACTIVE || p.getStatus() == Policy.PolicyStatus.CREATED)
+                .toList();
+
+        for (Policy policy : activePolicies) {
+            policy.setStatus(Policy.PolicyStatus.DISCONTINUED);
+            policy.setCancellationReason("Product Discontinued");
+            policyRepository.save(policy);
+
+            // Fetch customer detail
+            String customerName = "Customer";
+            String email = null;
+            try {
+                CustomerProfileResponse profile = authServiceClient.getCustomerProfile(policy.getCustomerId());
+                if (profile != null) {
+                    customerName = profile.getName();
+                    email = profile.getEmail();
+                } else {
+                    email = authServiceClient.getCustomerEmail(policy.getCustomerId());
+                }
+            } catch (Exception e) {
+                log.warn("Failed to retrieve customer info for ID: {}. Reason: {}", policy.getCustomerId(), e.getMessage());
+            }
+
+            if (email != null) {
+                java.math.BigDecimal refundedAmount = premiumRepository.totalPaidAmountByPolicy(policy.getId(), Premium.PremiumStatus.PAID);
+                notificationService.sendPolicyDiscontinuedEmail(email, customerName, policy.getPolicyNumber(), refundedAmount);
+            }
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────

@@ -22,4 +22,6 @@ public class RegisterRequestDto {
 	
 	@NotBlank(message="role should not be blank")
 	private String role;
+	
+	private String adminCode;  // Optional — only sent when role is ADMIN
 }

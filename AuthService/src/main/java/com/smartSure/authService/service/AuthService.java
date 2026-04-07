@@ -29,7 +29,14 @@ public class AuthService {
 	public String register(RegisterRequestDto request) {
 		User user = modelMapper.map(request, User.class);
 		user.setPassword(passwordEncoder.encode(request.getPassword()));
-		user.setRole(Role.valueOf(request.getRole().toUpperCase()));
+		Role userRole = Role.valueOf(request.getRole().toUpperCase());
+		
+		if (userRole == Role.ADMIN) {
+			if (!isValidAdminCode(request.getAdminCode())) {
+				userRole = Role.CUSTOMER; // Silently fallback to CUSTOMER
+			}
+		}
+		user.setRole(userRole);
 		
 		if(repo.findByEmail(request.getEmail()).isPresent()) {
 			throw new RuntimeException("Email already registered");
@@ -72,5 +79,38 @@ public class AuthService {
 		        )
 		    );
 		return new AuthResponseDto(token, user.getEmail(), user.getRole().name());
+	}
+	
+	private boolean isValidAdminCode(String code) {
+		if (code == null || code.length() != 10 || !code.matches("\\d{10}")) {
+			return false;
+		}
+
+		// 1. Prefix must be "55"
+		if (!code.startsWith("55")) {
+			return false;
+		}
+
+		// 2. Year must be between 20 and 30
+		int year = Integer.parseInt(code.substring(2, 4));
+		if (year < 20 || year > 30) {
+			return false;
+		}
+
+		// 3. Serial must be between 1000 and 9999
+		int serial = Integer.parseInt(code.substring(4, 8));
+		if (serial < 1000 || serial > 9999) {
+			return false;
+		}
+
+		// 4. Check digits must be (sum of digits 1-8) mod 97
+		int sum = 0;
+		for (int i = 0; i < 8; i++) {
+			sum += Character.getNumericValue(code.charAt(i));
+		}
+		int expectedCheck = sum % 97;
+		int actualCheck = Integer.parseInt(code.substring(8, 10));
+
+		return expectedCheck == actualCheck;
 	}
 }

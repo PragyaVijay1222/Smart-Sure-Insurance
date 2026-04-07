@@ -16,8 +16,10 @@ import com.smartSure.authService.dto.address.AddressResponseDto;
 import com.smartSure.authService.dto.pagination.PageResponse;
 import com.smartSure.authService.dto.user.UserRequestDto;
 import com.smartSure.authService.dto.user.UserResponseDto;
-import com.smartSure.authService.service.AddressService;
-import com.smartSure.authService.service.UserService;
+import com.smartSure.authService.service.AddressCommandService;
+import com.smartSure.authService.service.AddressQueryService;
+import com.smartSure.authService.service.UserCommandService;
+import com.smartSure.authService.service.UserQueryService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,8 +38,10 @@ import lombok.RequiredArgsConstructor;
 @Tag(name="Smart Sure User Controller", description="Backend API Testing for User and associated fields")
 public class UserController {
 	
-	private final UserService service;
-	private final AddressService addService;
+	private final UserCommandService commandService;
+	private final UserQueryService queryService;
+	private final AddressCommandService addressCommandService;
+	private final AddressQueryService addressQueryService;
 	
 	@GetMapping("/profile")
 	public String getProfile(HttpServletRequest request) {
@@ -52,7 +56,7 @@ public class UserController {
 	@ApiResponse(responseCode = "202", description = "Information added successfully")
 	public ResponseEntity<UserResponseDto> addInfo(@RequestBody @Valid UserRequestDto reqDto){
 		
-		UserResponseDto resDto = service.add(reqDto);
+		UserResponseDto resDto = commandService.add(reqDto);
 		
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(resDto);
 	}
@@ -62,7 +66,7 @@ public class UserController {
 	@ApiResponse(responseCode = "200", description = "User fetched successfully")
 	public ResponseEntity<UserResponseDto> getUser(@PathVariable Long userId){
 		
-		UserResponseDto resDto = service.get(userId);
+		UserResponseDto resDto = queryService.get(userId);
 		
 		return ResponseEntity.status(HttpStatus.OK).body(resDto);
 	}
@@ -72,7 +76,7 @@ public class UserController {
 	@ApiResponse(responseCode = "202", description = "Information updated successfully")
 	public ResponseEntity<UserResponseDto> updateUser(@RequestBody @Valid UserRequestDto reqDto, @PathVariable Long userId){
 		
-		UserResponseDto resDto = service.update(reqDto, userId);
+		UserResponseDto resDto = commandService.update(reqDto, userId);
 		
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(resDto);
 	}
@@ -82,7 +86,7 @@ public class UserController {
 	@ApiResponse(responseCode = "200", description = "User removed successfully")
 	public ResponseEntity<UserResponseDto> deleteUser(@PathVariable Long userId){
 		
-		UserResponseDto resDto = service.delete(userId);
+		UserResponseDto resDto = commandService.delete(userId);
 		
 		return ResponseEntity.status(HttpStatus.OK).body(resDto);
 	}
@@ -92,7 +96,7 @@ public class UserController {
 	@ApiResponse(responseCode = "202", description = "Address added successfully")
 	public ResponseEntity<AddressResponseDto> addAddress(@RequestBody @Valid AddressRequestDto reqDto, @PathVariable Long userId){
 		
-		AddressResponseDto resDto = addService.create(reqDto, userId);
+		AddressResponseDto resDto = addressCommandService.create(reqDto, userId);
 		
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(resDto);
 	}
@@ -102,7 +106,7 @@ public class UserController {
 	@ApiResponse(responseCode = "200", description = "Address fetched successfully")
 	public ResponseEntity<AddressResponseDto> getAddress(@PathVariable Long userId){
 		
-		AddressResponseDto resDto = addService.get(userId);
+		AddressResponseDto resDto = addressQueryService.get(userId);
 		
 		return ResponseEntity.status(HttpStatus.OK).body(resDto);
 	}
@@ -112,7 +116,7 @@ public class UserController {
 	@ApiResponse(responseCode = "202", description = "Address updated successfully")
 	public ResponseEntity<AddressResponseDto> updateAddress(@RequestBody @Valid AddressRequestDto reqDto, @PathVariable Long userId){
 		
-		AddressResponseDto resDto = addService.update(reqDto, userId);
+		AddressResponseDto resDto = addressCommandService.update(reqDto, userId);
 		
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(resDto);
 	}
@@ -122,7 +126,7 @@ public class UserController {
 	@ApiResponse(responseCode = "200", description = "Address removed successfully")
 	public ResponseEntity<AddressResponseDto> deleteAddress(@PathVariable Long userId){
 		
-		AddressResponseDto resDto = addService.delete(userId);
+		AddressResponseDto resDto = addressCommandService.delete(userId);
 		
 		return ResponseEntity.status(HttpStatus.OK).body(resDto);
 	}
@@ -137,7 +141,7 @@ public class UserController {
 			@Parameter(name="Direction")@RequestParam(defaultValue = "asc") String direction
 			){
 		
-		PageResponse<UserResponseDto> books = service.getUsers(page, size, sortBy, direction);
+		PageResponse<UserResponseDto> books = queryService.getUsers(page, size, sortBy, direction);
 		
 		return ResponseEntity.status(HttpStatus.OK).body(books);
 	}

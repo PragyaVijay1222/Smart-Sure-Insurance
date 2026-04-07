@@ -42,9 +42,23 @@ public class InternalAuthController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Build name safely — avoid "null" literal if firstName or lastName is missing
+        String firstName = user.getFirstName();
+        String lastName  = user.getLastName();
+        String fullName;
+        if (firstName != null && lastName != null) {
+            fullName = firstName + " " + lastName;
+        } else if (firstName != null) {
+            fullName = firstName;
+        } else if (lastName != null) {
+            fullName = lastName;
+        } else {
+            fullName = "Customer";
+        }
+
         CustomerProfileResponse response = CustomerProfileResponse.builder()
                 .id(user.getUserId())
-                .name(user.getFirstName() + " " + user.getLastName())
+                .name(fullName)
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .build();

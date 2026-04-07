@@ -1,6 +1,6 @@
 package com.smartSure.adminService.messaging;
 
-import com.smartSure.adminService.service.AuditLogService;
+import com.smartSure.adminService.service.AuditLogCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuditEventListener {
 
-    private final AuditLogService auditLogService;
+    private final AuditLogCommandService auditLogService;
 
     // Auto-log claim decisions — no manual admin action needed
     @RabbitListener(queues = RabbitMQConfig.ADMIN_CLAIM_AUDIT_QUEUE)

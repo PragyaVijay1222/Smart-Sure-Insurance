@@ -8,8 +8,8 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface PolicyTypeMapper {
 
-    @Mapping(target = "category", expression = "java(pt.getCategory().name())")
-    @Mapping(target = "status", expression = "java(pt.getStatus().name())")
+    @Mapping(target = "category", expression = "java(pt.getCategory() != null ? pt.getCategory().name() : null)")
+    @Mapping(target = "status", expression = "java(pt.getStatus() != null ? pt.getStatus().name() : null)")
     @Mapping(target = "createdAt", expression = "java(pt.getCreatedAt() != null ? pt.getCreatedAt().toString() : null)")
     PolicyTypeResponse toResponse(PolicyType pt);
 }

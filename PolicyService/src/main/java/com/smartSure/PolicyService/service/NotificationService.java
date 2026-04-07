@@ -100,23 +100,64 @@ public class NotificationService {
         send(toEmail, subject, body);
     }
 
+    // ── Policy Discontinued ────────────────────────────────
+
+    // Sends a discontinuation notification email to the customer with refund details
+    public void sendPolicyDiscontinuedEmail(
+            String toEmail, String customerName,
+            String policyNumber, BigDecimal refundedAmount) {
+
+        String subject = "Policy Discontinued & Refund Notice — " + policyNumber;
+        String body = """
+                Dear %s,
+
+                We regret to inform you that your policy %s has been discontinued due to the underlying insurance product being withdrawn.
+                
+                The total premium paid till date amount to ₹%s. This amount will be fully refunded to your original payment method within the next 5-7 business days.
+
+                We apologize for the inconvenience and hope to serve you with our other tailored policies.
+
+                SmartSure Support
+                """.formatted(customerName, policyNumber, refundedAmount);
+
+        send(toEmail, subject, body);
+    }
+
     // ── Internal Send ──────────────────────────────────────
 
     // Core email sender — rethrows exceptions so RabbitMQ retry mechanism can count failures
     private void send(String to, String subject, String body) {
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(body);
+            jakarta.mail.internet.MimeMessage message = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper = new org.springframework.mail.javamail.MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            
+            String htmlBody = buildHtmlEmail(subject, body);
+            helper.setText(htmlBody, true);
+            
             mailSender.send(message);
             log.info("Email sent to {} — subject: {}", to, subject);
         } catch (Exception ex) {
             log.error("Failed to send email to {}: {}", to, ex.getMessage());
             // Re-throw so RabbitMQ retry mechanism counts this as a failure
-            throw ex;
+            throw new RuntimeException("Email failed", ex);
         }
+    }
+
+    private String buildHtmlEmail(String subject, String textBody) {
+        String formattedText = textBody.replace("\n", "<br>");
+        return "<html><body style='font-family: \"Inter\", Arial, sans-serif; background-color: #f4f4f5; padding: 30px;'>" +
+               "<div style='max-width: 600px; margin: 0 auto;'>" +
+               "<div style='background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white; padding: 25px; border-radius: 12px 12px 0 0;'>" +
+               "<h2 style='margin: 0; font-weight: 700;'>" + subject + "</h2></div>" +
+               "<div style='background-color: white; padding: 30px; border-radius: 0 0 12px 12px; border: 1px solid #e4e4e7; border-top: none; line-height: 1.7; color: #3f3f46; font-size: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);'>" +
+               formattedText +
+               "</div>" +
+               "<p style='text-align: center; color: #a1a1aa; font-size: 12px; margin-top: 20px;'>© 2026 Smart Sure Insurance. All rights reserved.</p>" +
+               "</div></body></html>";
     }
     // Sends a reminder email to the customer when a premium installment is due soon
     public void sendPremiumDueReminderEmail(

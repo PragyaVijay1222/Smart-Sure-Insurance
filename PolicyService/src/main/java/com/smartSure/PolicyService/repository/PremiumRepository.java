@@ -13,7 +13,7 @@
 //
 //public interface PremiumRepository extends JpaRepository<Premium, Long> {
 //
-//    List<Premium> findByPolicyId(Long policyId);
+//    List<Premium> findByPolicy_Id(Long policyId);
 //
 //    List<Premium> findByPolicyIdAndStatus(Long policyId, Premium.PremiumStatus status);
 //
@@ -53,7 +53,7 @@ import java.util.Optional;
 
 public interface PremiumRepository extends JpaRepository<Premium, Long> {
 
-    List<Premium> findByPolicyId(Long policyId);
+    List<Premium> findByPolicy_Id(Long policyId);
 
     List<Premium> findByPolicyIdAndStatus(Long policyId, Premium.PremiumStatus status);
 

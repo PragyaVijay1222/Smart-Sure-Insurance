@@ -9,4 +9,8 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ClaimRequest {
     private Long policyId;
+    private java.math.BigDecimal amount;
+    private String incidentDate; // passed as ISO string from frontend
+    private String incidentLocation;
+    private String description;
 }

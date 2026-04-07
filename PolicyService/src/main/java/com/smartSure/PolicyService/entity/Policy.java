@@ -100,7 +100,8 @@ public class Policy {
         CREATED,    // Policy purchased but not yet effective
         ACTIVE,     // Policy is active and coverage is in force
         EXPIRED,    // Policy term has ended
-        CANCELLED   // Policy cancelled by customer or admin
+        CANCELLED,  // Policy cancelled by customer or admin
+        DISCONTINUED // Policy cancelled due to product discontinuation
     }
 
     public enum PaymentFrequency {

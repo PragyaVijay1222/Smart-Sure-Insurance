@@ -12,5 +12,5 @@ import lombok.Setter;
 public class PolicyDTO {
     private long policyID;
     private BigDecimal amount;
-    private long userId;
+    private long customerId;
 }

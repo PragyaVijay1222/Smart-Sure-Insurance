@@ -12,9 +12,11 @@ public class RabbitMQConfig {
 
     // Exchange
     public static final String EXCHANGE = "smartsure.exchange";
+    public static final String EMAIL_EXCHANGE = "emailExchange";
 
     // Routing keys
     public static final String PAYMENT_COMPLETED_KEY = "payment.completed";
+    public static final String EMAIL_ROUTING_KEY = "emailRoutingKey";
 
     // Queues
     public static final String PAYMENT_COMPLETED_QUEUE = "payment.completed.queue";

@@ -46,6 +46,7 @@ services:
 
   # -------------------- Config Server --------------------
   config-server-smart-sure:
+    build: ./config-server-smart-sure
     image: pragyavijay/config-server:latest
     container_name: config-server-smart-sure
     environment:
@@ -59,6 +60,7 @@ services:
 
   # -------------------- Eureka / Service Registry --------------------
   service-registry-smart-sure:
+    build: ./ServiceRegistrySmartSure
     image: pragyavijay/service-registry:latest
     container_name: service-registry-smart-sure
     environment:
@@ -72,6 +74,7 @@ services:
 
   # -------------------- API Gateway --------------------
   api-gateway-smartsure:
+    build: ./ApiGatewaySmartSure
     image: pragyavijay/api-gateway:latest
     container_name: api-gateway-smartsure
     environment:
@@ -85,6 +88,7 @@ services:
 
   # -------------------- Microservices --------------------
   auth-service:
+    build: ./AuthService
     image: pragyavijay/auth-service:latest
     container_name: auth-service
     environment:
@@ -103,6 +107,7 @@ services:
     restart: always
 
   policy-service:
+    build: ./PolicyService
     image: pragyavijay/policy-service:latest
     container_name: policy-service
     environment:
@@ -121,6 +126,7 @@ services:
     restart: always
 
   payment-service:
+    build: ./paymentService
     image: pragyavijay/payment-service:latest
     container_name: payment-service
     environment:
@@ -139,6 +145,7 @@ services:
     restart: always
 
   claim-service:
+    build: ./claimService
     image: pragyavijay/claim-service:latest
     container_name: claim-service
     environment:
@@ -157,6 +164,7 @@ services:
     restart: always
 
   admin-service:
+    build: ./adminService
     image: pragyavijay/admin-service:latest
     container_name: admin-service
     environment:

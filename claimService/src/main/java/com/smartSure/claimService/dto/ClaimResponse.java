@@ -18,8 +18,12 @@ public class ClaimResponse {
     private Long id;
     private long policyId;
     private BigDecimal amount;
-    private Status status;
+    private String status;
+    private Long customerId;
     private LocalDateTime timeOfCreation;
+    private String incidentDate;
+    private String incidentLocation;
+    private String description;
 
     // Document upload status flags — true means file has been uploaded
     private boolean claimFormUploaded;

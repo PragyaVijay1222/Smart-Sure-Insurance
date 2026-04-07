@@ -8,7 +8,7 @@ import com.smartSure.adminService.dto.client.UserDTO;
 
 import java.util.List;
 
-@FeignClient(name = "authService")
+@FeignClient(name = "AuthService")
 public interface UserFeignClient {
 
     // Fetch a single user by ID — used when admin views claim/policy details

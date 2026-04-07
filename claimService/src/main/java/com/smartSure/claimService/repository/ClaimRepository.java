@@ -12,4 +12,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ClaimRepository extends JpaRepository<Claim, Long> {
     List<Claim> findByStatus(Status status);
+    List<Claim> findByCustomerId(Long customerId);
 }

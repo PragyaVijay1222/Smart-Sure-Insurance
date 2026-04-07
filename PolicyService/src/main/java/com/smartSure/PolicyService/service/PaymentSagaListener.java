@@ -66,6 +66,20 @@ public class PaymentSagaListener {
 
         log.info("SAGA: Successfully updated Premium id={} to PAID status.", saved.getId());
 
+        // Fetch actual customer profile for name
+        String customerName = "Customer";
+        String customerEmail = null;
+        try {
+            var profile = authServiceClient.getCustomerProfile(policy.getCustomerId());
+            if (profile != null) {
+                customerEmail = profile.getEmail();
+                customerName = profile.getName() != null ? profile.getName() : "Customer";
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch customer profile for customerId={}: {}", policy.getCustomerId(), e.getMessage());
+            customerEmail = getCustomerEmailSafely(policy.getCustomerId());
+        }
+
         // Fire notification 
         notificationPublisher.publishPremiumPaid(
                 PremiumPaidEvent.builder()
@@ -73,8 +87,8 @@ public class PaymentSagaListener {
                         .policyId(policy.getId())
                         .policyNumber(policy.getPolicyNumber())
                         .customerId(policy.getCustomerId())
-                        .customerEmail(getCustomerEmailSafely(policy.getCustomerId()))
-                        .customerName("Customer")
+                        .customerEmail(customerEmail)
+                        .customerName(customerName)
                         .amount(saved.getAmount())
                         .paidDate(saved.getPaidDate())
                         .paymentMethod(saved.getPaymentMethod() != null ? saved.getPaymentMethod().name() : null)

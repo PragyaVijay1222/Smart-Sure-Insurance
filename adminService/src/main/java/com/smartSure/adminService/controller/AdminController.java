@@ -1,13 +1,14 @@
 package com.smartSure.adminService.controller;
 
-import com.smartSure.adminService.dto.audit.AuditLogDTO;
 import com.smartSure.adminService.dto.client.ClaimDTO;
 import com.smartSure.adminService.dto.client.PolicyDTO;
 import com.smartSure.adminService.dto.client.UserDTO;
 import com.smartSure.adminService.dto.update.ClaimStatusUpdateRequest;
 import com.smartSure.adminService.entity.AuditLog;
-import com.smartSure.adminService.service.AdminService;
-import com.smartSure.adminService.service.AuditLogService;
+import com.smartSure.adminService.service.AdminCommandService;
+import com.smartSure.adminService.service.AdminQueryService;
+import com.smartSure.adminService.service.AuditLogCommandService;
+import com.smartSure.adminService.service.AuditLogQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,27 +28,29 @@ import java.util.List;
 @Tag(name = "Admin Controller", description = "Admin operations — claim review, policy management, user management, audit logs")
 public class AdminController {
 
-    private final AdminService adminService;
-    private final AuditLogService auditLogService;
+    private final AdminCommandService adminCommandService;
+    private final AdminQueryService adminQueryService;
+    private final AuditLogCommandService auditLogCommandService;
+    private final AuditLogQueryService auditLogQueryService;
 
     // ==================== CLAIM MANAGEMENT ====================
 
     @GetMapping("/claims")
     @Operation(summary = "Get all claims")
     public ResponseEntity<List<ClaimDTO>> getAllClaims() {
-        return ResponseEntity.ok(adminService.getAllClaims());
+        return ResponseEntity.ok(adminQueryService.getAllClaims());
     }
 
     @GetMapping("/claims/under-review")
     @Operation(summary = "Get all claims currently under review")
     public ResponseEntity<List<ClaimDTO>> getUnderReviewClaims() {
-        return ResponseEntity.ok(adminService.getUnderReviewClaims());
+        return ResponseEntity.ok(adminQueryService.getUnderReviewClaims());
     }
 
     @GetMapping("/claims/{claimId}")
     @Operation(summary = "Get a single claim by ID")
     public ResponseEntity<ClaimDTO> getClaimById(@PathVariable Long claimId) {
-        return ResponseEntity.ok(adminService.getClaimById(claimId));
+        return ResponseEntity.ok(adminQueryService.getClaimById(claimId));
     }
 
     // Admin starts reviewing a claim — moves it from SUBMITTED → UNDER_REVIEW
@@ -56,7 +59,7 @@ public class AdminController {
     public ResponseEntity<ClaimDTO> markUnderReview(
             @PathVariable Long claimId,
             @RequestHeader("X-Admin-Id") Long adminId) {
-        return ResponseEntity.ok(adminService.markUnderReview(adminId, claimId));
+        return ResponseEntity.ok(adminCommandService.markUnderReview(adminId, claimId));
     }
 
     // Admin approves a claim — moves it to APPROVED and logs the action
@@ -66,7 +69,7 @@ public class AdminController {
             @PathVariable Long claimId,
             @RequestHeader("X-Admin-Id") Long adminId,
             @RequestBody ClaimStatusUpdateRequest request) {
-        return ResponseEntity.ok(adminService.approveClaim(adminId, claimId, request.getRemarks()));
+        return ResponseEntity.ok(adminCommandService.approveClaim(adminId, claimId, request.getRemarks()));
     }
 
     // Admin rejects a claim — moves it to REJECTED and logs the action
@@ -76,7 +79,7 @@ public class AdminController {
             @PathVariable Long claimId,
             @RequestHeader("X-Admin-Id") Long adminId,
             @RequestBody ClaimStatusUpdateRequest request) {
-        return ResponseEntity.ok(adminService.rejectClaim(adminId, claimId, request.getRemarks()));
+        return ResponseEntity.ok(adminCommandService.rejectClaim(adminId, claimId, request.getRemarks()));
     }
 
     // ==================== POLICY MANAGEMENT ====================
@@ -84,13 +87,13 @@ public class AdminController {
     @GetMapping("/policies")
     @Operation(summary = "Get all policies")
     public ResponseEntity<List<PolicyDTO>> getAllPolicies() {
-        return ResponseEntity.ok(adminService.getAllPolicies());
+        return ResponseEntity.ok(adminQueryService.getAllPolicies());
     }
 
     @GetMapping("/policies/{policyId}")
     @Operation(summary = "Get a single policy by ID")
     public ResponseEntity<PolicyDTO> getPolicyById(@PathVariable Long policyId) {
-        return ResponseEntity.ok(adminService.getPolicyById(policyId));
+        return ResponseEntity.ok(adminQueryService.getPolicyById(policyId));
     }
 
     // Admin cancels a policy — calls policyService and logs the action
@@ -100,7 +103,7 @@ public class AdminController {
             @PathVariable Long policyId,
             @RequestHeader("X-Admin-Id") Long adminId,
             @RequestParam(required = false) String reason) {
-        return ResponseEntity.ok(adminService.cancelPolicy(adminId, policyId, reason));
+        return ResponseEntity.ok(adminCommandService.cancelPolicy(adminId, policyId, reason));
     }
 
     // ==================== USER MANAGEMENT ====================
@@ -108,13 +111,13 @@ public class AdminController {
     @GetMapping("/users")
     @Operation(summary = "Get all registered users")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
-        return ResponseEntity.ok(adminService.getAllUsers());
+        return ResponseEntity.ok(adminQueryService.getAllUsers());
     }
 
     @GetMapping("/users/{userId}")
     @Operation(summary = "Get a single user by ID")
     public ResponseEntity<UserDTO> getUserById(@PathVariable Long userId) {
-        return ResponseEntity.ok(adminService.getUserById(userId));
+        return ResponseEntity.ok(adminQueryService.getUserById(userId));
     }
 
     // ==================== AUDIT LOGS ====================
@@ -122,14 +125,14 @@ public class AdminController {
     @GetMapping("/audit-logs")
     @Operation(summary = "Get all audit logs")
     public ResponseEntity<List<AuditLog>> getAllLogs() {
-        return ResponseEntity.ok(auditLogService.getAllLogs());
+        return ResponseEntity.ok(auditLogQueryService.getAllLogs());
     }
 
     @GetMapping("/audit-logs/recent")
     @Operation(summary = "Get recent admin activity (last N entries)")
     public ResponseEntity<List<AuditLog>> getRecentActivity(
             @RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(adminService.getRecentActivity(limit));
+        return ResponseEntity.ok(adminQueryService.getRecentActivity(limit));
     }
 
     @GetMapping("/audit-logs/{entity}/{id}")
@@ -137,7 +140,7 @@ public class AdminController {
     public ResponseEntity<List<AuditLog>> getEntityHistory(
             @PathVariable String entity,
             @PathVariable Long id) {
-        return ResponseEntity.ok(adminService.getEntityHistory(entity, id));
+        return ResponseEntity.ok(adminQueryService.getEntityHistory(entity, id));
     }
 
     @GetMapping("/audit-logs/range")
@@ -146,7 +149,7 @@ public class AdminController {
             @RequestParam String from,
             @RequestParam String to) {
         return ResponseEntity.ok(
-                auditLogService.getLogsByDateRange(
+                auditLogQueryService.getLogsByDateRange(
                         LocalDateTime.parse(from),
                         LocalDateTime.parse(to)
                 )

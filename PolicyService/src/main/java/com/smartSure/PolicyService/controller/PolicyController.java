@@ -5,7 +5,8 @@ import com.smartSure.PolicyService.dto.calculation.PremiumCalculationResponse;
 import com.smartSure.PolicyService.dto.policy.*;
 import com.smartSure.PolicyService.dto.premium.PremiumPaymentRequest;
 import com.smartSure.PolicyService.dto.premium.PremiumResponse;
-import com.smartSure.PolicyService.service.PolicyService;
+import com.smartSure.PolicyService.service.PolicyCommandService;
+import com.smartSure.PolicyService.service.PolicyQueryService;
 import com.smartSure.PolicyService.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,7 +31,8 @@ import java.util.List;
 @Tag(name = "Policies", description = "Policy purchase, management, and premium payment")
 public class PolicyController {
 
-    private final PolicyService policyService;
+    private final PolicyCommandService commandService;
+    private final PolicyQueryService queryService;
 
     // ==================== CUSTOMER APIs ====================
 
@@ -46,7 +48,7 @@ public class PolicyController {
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(policyService.purchasePolicy(customerId, request));
+                .body(commandService.purchasePolicy(customerId, request));
     }
 
     @GetMapping("/my")
@@ -68,18 +70,20 @@ public class PolicyController {
             dir = Sort.Direction.ASC;
         }
 
-        return ResponseEntity.ok(policyService.getCustomerPolicies(customerId, PageRequest.of(page, size, Sort.by(dir, sortBy))));
+        return ResponseEntity
+                .ok(queryService.getCustomerPolicies(customerId, PageRequest.of(page, size, Sort.by(dir, sortBy))));
     }
 
     @GetMapping("/{policyId}")
-    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PolicyResponse> getPolicyById(@PathVariable Long policyId) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        String currentRole = SecurityUtils.getCurrentRole();
 
-        boolean isAdmin = currentRole != null && currentRole.equals("ROLE_ADMIN");
+        Long userId = SecurityUtils.getCurrentUserId();
+        String role = SecurityUtils.getCurrentRole();
 
-        return ResponseEntity.ok(policyService.getPolicyById(policyId, currentUserId, isAdmin));
+        boolean isAdmin = "ROLE_ADMIN".equals(role);
+
+        return ResponseEntity.ok(queryService.getPolicyById(policyId, userId, isAdmin));
     }
 
     @PutMapping("/{policyId}/cancel")
@@ -90,11 +94,7 @@ public class PolicyController {
 
         Long customerId = SecurityUtils.getCurrentUserId();
 
-        if (customerId == null) {
-            throw new RuntimeException("Unauthorized: User not found in context");
-        }
-
-        return ResponseEntity.ok(policyService.cancelPolicy(policyId, customerId, reason));
+        return ResponseEntity.ok(commandService.cancelPolicy(policyId, customerId, reason));
     }
 
     @PostMapping("/renew")
@@ -105,7 +105,7 @@ public class PolicyController {
         Long customerId = SecurityUtils.getCurrentUserId();
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(policyService.renewPolicy(customerId, request));
+                .body(commandService.renewPolicy(customerId, request));
     }
 
     // ==================== PREMIUM PAYMENT ====================
@@ -117,9 +117,7 @@ public class PolicyController {
 
         Long customerId = SecurityUtils.getCurrentUserId();
 
-        return ResponseEntity.ok(
-                policyService.payPremium(customerId, request)
-        );
+        return ResponseEntity.ok(commandService.payPremium(customerId, request));
     }
 
     @GetMapping("/{policyId}/premiums")
@@ -127,20 +125,21 @@ public class PolicyController {
     public ResponseEntity<List<PremiumResponse>> getPremiums(
             @PathVariable Long policyId) {
 
-        return ResponseEntity.ok(
-                policyService.getPremiumsByPolicy(policyId)
-        );
+        Long userId = SecurityUtils.getCurrentUserId();
+        String role = SecurityUtils.getCurrentRole();
+        boolean isAdmin = "ROLE_ADMIN".equals(role);
+
+        return ResponseEntity.ok(queryService.getPremiumsByPolicy(policyId, userId, isAdmin));
     }
 
     // ==================== PREMIUM CALCULATION ====================
 
     @PostMapping("/calculate-premium")
+    @PreAuthorize("permitAll()")
     public ResponseEntity<PremiumCalculationResponse> calculatePremium(
             @Valid @RequestBody PremiumCalculationRequest request) {
 
-        return ResponseEntity.ok(
-                policyService.calculatePremium(request)
-        );
+        return ResponseEntity.ok(queryService.calculatePremium(request));
     }
 
     // ==================== ADMIN APIs ====================
@@ -153,13 +152,9 @@ public class PolicyController {
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String direction) {
 
-        Sort sort = direction.equalsIgnoreCase("asc")
-                ? Sort.by(sortBy).ascending()
-                : Sort.by(sortBy).descending();
+        Sort.Direction dir = direction.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
 
-        return ResponseEntity.ok(
-                policyService.getAllPolicies(PageRequest.of(page, size, sort))
-        );
+        return ResponseEntity.ok(queryService.getAllPolicies(PageRequest.of(page, size, Sort.by(dir, sortBy))));
     }
 
     @PutMapping("/admin/{policyId}/status")
@@ -168,17 +163,30 @@ public class PolicyController {
             @PathVariable Long policyId,
             @Valid @RequestBody PolicyStatusUpdateRequest request) {
 
-        return ResponseEntity.ok(
-                policyService.adminUpdatePolicyStatus(policyId, request)
-        );
+        return ResponseEntity.ok(commandService.adminUpdatePolicyStatus(policyId, request));
     }
 
     @GetMapping("/admin/summary")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PolicySummaryResponse> getPolicySummary() {
 
-        return ResponseEntity.ok(
-                policyService.getPolicySummary()
-        );
+        return ResponseEntity.ok(queryService.getPolicySummary());
+    }
+
+    @GetMapping("/admin/customer/{customerId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getAdminCustomerPolicies(@PathVariable Long customerId) {
+        try {
+            return ResponseEntity.ok(queryService.getAdminCustomerPolicies(customerId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("PolicyService Error: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/admin/ping")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> pingAdmin() {
+        return ResponseEntity.ok("PolicyService Admin API is reachable");
     }
 }

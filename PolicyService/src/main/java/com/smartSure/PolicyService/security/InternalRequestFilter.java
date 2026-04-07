@@ -36,7 +36,10 @@ public class InternalRequestFilter extends OncePerRequestFilter {
         // Allow public endpoints
         if (path.startsWith("/api/auth") ||
                 path.startsWith("/swagger") ||
-                path.startsWith("/v3/api-docs") || path.startsWith("/actuator") ){
+                path.startsWith("/v3/api-docs") || 
+                path.startsWith("/actuator") ||
+                path.startsWith("/api/policy-types") ||
+                path.startsWith("/api/policies/calculate-premium")) {
 
             filterChain.doFilter(request, response);
             return;

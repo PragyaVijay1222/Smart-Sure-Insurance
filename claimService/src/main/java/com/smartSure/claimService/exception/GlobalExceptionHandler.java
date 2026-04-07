@@ -34,6 +34,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(DocumentNotUploadedException.class)
     public ResponseEntity<Map<String, String>> handleDocumentNotUploaded(DocumentNotUploadedException ex) {
+        System.err.println("DocumentNotUploadedException: " + ex.getMessage());
         Map<String, String> map = new HashMap<>();
         map.put("Error", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(map);
