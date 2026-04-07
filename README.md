@@ -1,4 +1,4 @@
-# 🛡️ Smart Sure Insurance
+# Smart Sure Insurance
 
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.11-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Angular](https://img.shields.io/badge/Angular-19.2.0-red.svg)](https://angular.io/)
@@ -14,7 +14,7 @@
 ### 👤 For Customers
 - **Policy Discovery:** Browse and purchase curated insurance plans tailored to individual needs.
 - **Digital Claim Filing:** A streamlined, document-less claim submission process with real-time tracking.
-- **Premium Management:** Integrated payment gateway with RazorPay for one-click premium payments and automated schedules.
+- **Premium Management:** Integrated payment gateway for one-click premium payments and automated schedules.
 - **Personalized Dashboard:** Unified view of active policies, payment history, and claim status.
 
 ### 💼 For Administrators
@@ -36,6 +36,7 @@ graph TD
     AG -->|Route| PS[Policy Service]
     AG -->|Route| CS[Claim Service]
     AG -->|Route| PYS[Payment Service]
+    AG -->|Route| ADM[Admin Service]
     
     subgraph "Core Infrastructure"
         SR[Service Registry - Eureka]
@@ -52,9 +53,9 @@ graph TD
     PS --- DB
     CS --- DB
     PYS --- DB
-    AS & PS & CS & PYS --- MQ
-    AS & PS & CS & PYS --- SR
-    AS & PS & CS & PYS --- CFG
+    AS & PS & CS & PYS & ADM --- MQ
+    AS & PS & CS & PYS & ADM --- SR
+    AS & PS & CS & PYS & ADM --- CFG
 ```
 
 ### Microservices Overview:
@@ -64,6 +65,7 @@ graph TD
 - **Policy Service:** Core domain service managing policy catalogs and user enrollments.
 - **Claim Service:** Handles the end-to-end lifecycle of insurance claims and document validation.
 - **Payment Service:** Manages premium transactions and payment gateway integrations.
+- **Admin Service:** Specialized administrative logic for customer 360 views and high-level reporting.
 - **Notification Service:** Asynchronous event-driven email and SMS notifications via RabbitMQ.
 - **Config Server:** Centralized Git-backed configuration management.
 
